@@ -90,7 +90,7 @@ Download Qemu project.
 ```shell
 mkdir $HOME/apps
 cd $HOME/apps
-git clone git://git.qemu-project.org/qemu.git
+git clone https://gitlab.com/qemu-project/qemu.git
 cd $HOME/apps/qemu
 ```
 
