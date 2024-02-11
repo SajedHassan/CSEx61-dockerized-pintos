@@ -1,9 +1,7 @@
 # Installation Guidelines
-This video walks you through the installation steps in this document
+This video walks you through the installation steps in this document: <a href="https://alexuuni-my.sharepoint.com/:v:/g/personal/sajed_almorsy_alexu_edu_eg/ETpHvNYWOSxNnlNQo2KURJEBz69dNhjVduJxKwLXb7J2AA?e=tBEiSq&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D">Installation instructions explanation</a>
 
-<iframe src="https://alexuuni-my.sharepoint.com/personal/sajed_almorsy_alexu_edu_eg/_layouts/15/embed.aspx?UniqueId=d6bc473a-3916-4d2c-9e53-50a362944491&embed=%7B%22ust%22%3Atrue%2C%22hv%22%3A%22CopyEmbedCode%22%7D&referrer=StreamWebApp&referrerScenario=EmbedDialog.Create" width="640" height="360" frameborder="0" scrolling="no" allowfullscreen title="PintOS Installation.mp4"></iframe>
-
-<br><br>
+<br>
 This installation guidelines are tested on:
 
 1. Qemu Simulator / Ubuntu 20.04 LTS
