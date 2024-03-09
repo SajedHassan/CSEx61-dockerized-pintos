@@ -3,7 +3,7 @@
 1) Install Docker Desktop from https://www.docker.com/products/docker-desktop/
 2) Pull the pinto image `sajedalmorsy/pintos:1.0` from Docker Hub:
 ```
-docker pull sajedalmorsy/pintos:1.0
+sudo docker pull sajedalmorsy/pintos:1.0
 ```
 3) Go to the place in where you would like to install the project
 Note: You may install it in any place as per your preferences \
@@ -17,7 +17,11 @@ git clone git@github.com:SajedHassan/CSEx61-dockerized-pintos.git
 ```
 5) From the directory, in which the repo is cloned, run a container from the pulled image and attach the repo as a volume:
 ```
-docker run --platform linux/amd64 --rm -it -v $(pwd)/CSEx61-dockerized-pintos:/root/pintos pintos:1.0
+sudo docker run --platform linux/amd64 --rm -it -v "$(pwd)/CSEx61-dockerized-pintos:/root/pintos" a85bf0a348d6
+```
+Note: If you got an error which is related to specifying container image platform use this command instead:
+```
+sudo docker run --rm -it -v "$(pwd)/CSEx61-dockerized-pintos:/root/pintos" a85bf0a348d6
 ```
 6) You should now be inside of the running container. Navigate to:
 ```
