@@ -29,6 +29,7 @@ cd ~/pintos
 ```
 7) Update the permissions and exclude it from git:
 ```
+git config --global --add safe.directory /root/pintos
 chmod -R 777 .
 git config core.filemode false
 ```
