@@ -18,6 +18,7 @@
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
+
 struct list sleepy_list; //linked list for sleepy list in sorted form 
 struct lock sleepy_list_lock; //lock for linked list synchronous modification 
 
@@ -34,6 +35,7 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static bool cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -190,6 +192,7 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
+/****************************************************************************************************/
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
@@ -209,8 +212,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
   
 
   thread_tick (); 
+  /*save list for all thread sleep check which thread to be ready walkup*/
 }
-
+/****************************************************************************************************/
 /* Returns true if LOOPS iterations waits for more than one timer
    tick, otherwise false. */
 static bool
@@ -282,6 +286,7 @@ real_time_delay (int64_t num, int32_t denom)
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
 
+/* Compare function for sleeping thread list */
 static bool
 cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
 {
@@ -289,3 +294,4 @@ cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
   struct sleepy_thread_elem* second = list_entry(b, struct sleepy_thread_elem, list_elem_val);
   return first->tick_to_walke_up < second->tick_to_walke_up;
 }
+
