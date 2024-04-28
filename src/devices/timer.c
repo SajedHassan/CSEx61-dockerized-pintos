@@ -11,13 +11,13 @@
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
+
 #if TIMER_FREQ < 19
 #error 8254 timer requires TIMER_FREQ >= 19
 #endif
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
-
 struct list sleepy_list; //linked list for sleepy list in sorted form 
 struct lock sleepy_list_lock; //lock for linked list synchronous modification 
 
@@ -191,7 +191,6 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
-/****************************************************************************************************/
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
@@ -211,9 +210,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   
 
   thread_tick (); 
-  /*save list for all thread sleep check which thread to be ready walkup*/
 }
-/****************************************************************************************************/
+
 /* Returns true if LOOPS iterations waits for more than one timer
    tick, otherwise false. */
 static bool
@@ -285,7 +283,6 @@ real_time_delay (int64_t num, int32_t denom)
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
 
-/* Compare function for sleeping thread list */
 static bool
 cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
 {
@@ -293,4 +290,3 @@ cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
   struct sleepy_thread_elem* second = list_entry(b, struct sleepy_thread_elem, list_elem_val);
   return first->tick_to_walke_up < second->tick_to_walke_up;
 }
-
