@@ -386,10 +386,10 @@ thread_get_load_avg (void)
 /* ==================== MLFQS ==================== */
 void thread_calculate_load_avg (void) {
   int ready_threads = list_size (&ready_list);
-  if (thread_current () != idle_thread) {
-    ready_threads++;
-  }
-  load_avg = add (mul_int (div_int (int_to_fixed (59), 60), load_avg), mul_int (div_int (int_to_fixed (1), 60), ready_threads));
+  // if (thread_current () != idle_thread) {
+  //   ready_threads++;
+  // }
+  load_avg = add (mul (div_int (int_to_fixed (59), 60), load_avg), mul_int (div_int (int_to_fixed (1), 60), ready_threads));
 }
 /* ==================== MLFQS END ==================== */
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -405,8 +405,8 @@ void thread_calculate_recent_cpu (struct thread *t, void *aux) {
   if (t == idle_thread) {
     return;
   }
-  int load_avg = div_int (load_avg * 2, load_avg * 2 + int_to_fixed (1));
-  t->recent_cpu = add_int (mul (load_avg, t->recent_cpu), t->nice);
+  int temp = mul (mul_int (load_avg, 2), add_int (mul_int (load_avg, 2), 1));
+  t->recent_cpu = add_int (mul (temp, t->recent_cpu), t->nice);
 }
 
 void thread_calculate_recent_cpu_all (void) {
@@ -529,6 +529,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->nice = 0;
+  t->recent_cpu = 0;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
