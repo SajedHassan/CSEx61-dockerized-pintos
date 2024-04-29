@@ -94,19 +94,18 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-      
+      /*<! Added for Periority Scheduler !>*/
+    int effectivePriority; 
+    struct lock* waitingOnLock;                                                                                   
+    struct list  AcquireLockList;
 
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 #endif
-    uint64_t sleepingTime;
+
     /* Owned by thread.c. */
-    /*<! Added for Periority Scheduler !>*/
-    int effectivePriority; 
-    struct lock* waitingOnLock;                                                                                   
-    struct list  AcquireLockList;
     unsigned magic;                     /* Detects stack overflow. */
   };
 
@@ -151,5 +150,7 @@ int thread_get_load_avg (void);
 bool PeriorityOfLockHandler(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool PriorityOfThreadHandler(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool to_compare_thread(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool thread_cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED);
+bool comp(struct thread* first, struct thread* second);
 
 #endif /* threads/thread.h */
