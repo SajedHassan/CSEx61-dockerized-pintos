@@ -190,10 +190,14 @@ lock_init (struct lock *lock)
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
 }
-void nestedDonation(struct thread * holderThread){
+
+
+void nestedDonation(struct thread * holderThread)
+{
   if(holderThread == NULL || holderThread->waitingOnLock == NULL) return;
-  if(holderThread->priority > holderThread->waitingOnLock->PriorityOfLock){
-    holderThread->waitingOnLock->PriorityOfLock = holderThread->priority;
+  if(holderThread->priority > holderThread->waitingOnLock->PriorityOfLock)
+  {
+    holderThread->waitingOnLock->PriorityOfLock   = holderThread->priority;
     holderThread->waitingOnLock->holder->priority = holderThread->priority;
   }
   nestedDonation(holderThread->waitingOnLock->holder);
@@ -227,7 +231,6 @@ lock_acquire (struct lock *lock)
     struct thread *cur = thread_current();
     if(lock_try_acquire (lock)==false)
     { 
-      
       cur->waitingOnLock = lock;                                         
       if(cur->priority > lock->PriorityOfLock)
       {
@@ -278,15 +281,16 @@ lock_try_acquire (struct lock *lock)
   return success;
 }
 void releaseLockPriority(struct lock* lock)
-   { list_remove(&(lock->lockElem));
-      //we should get max priority and give it to the lock 
-      if (!(list_empty(&lock->semaphore.waiters)))
-      { struct list_elem *ElemMaxPeriority = list_max(&(lock->semaphore.waiters), PriorityOfThreadHandler, NULL);
-          
-          struct thread *ThreadMaxPriority = list_entry(ElemMaxPeriority, struct thread, elem);
-          lock->PriorityOfLock = ThreadMaxPriority->priority;
-      }
-   }
+{ 
+  list_remove(&(lock->lockElem));
+  //we should get max priority and give it to the lock 
+  if (!(list_empty(&lock->semaphore.waiters)))
+  { 
+    struct list_elem *ElemMaxPeriority = list_max(&(lock->semaphore.waiters), PriorityOfThreadHandler, NULL);  
+    struct thread *ThreadMaxPriority = list_entry(ElemMaxPeriority, struct thread, elem);
+    lock->PriorityOfLock = ThreadMaxPriority->priority;
+  }
+}
     
       /*we actully make thread with highest priority to catch lock but we now should ensure that 
       this thread not require another lock and if it requires we should change thث priority of current lock */
@@ -322,8 +326,8 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   if (!thread_mlfqs)
   { 
-  releaseLockPriority(lock);
-   multipleLocks(lock);
+    releaseLockPriority(lock);
+    multipleLocks(lock);
   }
   lock->holder = NULL;
   sema_up (&lock->semaphore);
@@ -385,7 +389,7 @@ cond_wait (struct condition *cond, struct lock *lock)
 {
   struct semaphore_elem waiter;
   /*< Modified for Periority Scheduler >*/
-  waiter.priority = thread_current()->priority;
+  
 
   ASSERT (cond != NULL);
   ASSERT (lock != NULL);
@@ -393,6 +397,7 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
+  waiter.priority = thread_current()->priority;
   list_push_back (&cond->waiters, &waiter.elem);
   lock_release (lock);
   sema_down (&waiter.semaphore);
@@ -403,9 +408,12 @@ cond_wait (struct condition *cond, struct lock *lock)
 //prepare to argument in func list_sort in cond_signal fn
 bool PriorityOfSemaphoreHandler(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
-  return  *(list_entry(a, struct semaphore_elem, elem)->priority) >
-          *(list_entry(b, struct semaphore_elem, elem)->priority);
+    const struct semaphore_elem *semaphore_elem_a = list_entry(a, struct semaphore_elem, elem);
+    const struct semaphore_elem *semaphore_elem_b = list_entry(b, struct semaphore_elem, elem);
+
+    return semaphore_elem_a->priority > semaphore_elem_b->priority;
 }
+
 
 
 /* If any threads are waiting on COND (protected by LOCK), then
@@ -422,11 +430,12 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
-
-  if (!list_empty (&cond->waiters)) 
-  { list_sort(&cond->waiters , PriorityOfSemaphoreHandler , NULL);
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+  
+  if (!list_empty(&cond->waiters)) 
+  {
+    list_sort(&cond->waiters , PriorityOfSemaphoreHandler , NULL); //////Problem
+    sema_up (&list_entry (list_pop_front(&cond->waiters),
+    struct semaphore_elem, elem)->semaphore);
   }
 }
 

@@ -151,4 +151,9 @@ int thread_get_load_avg (void);
 bool PeriorityOfLockHandler(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool PriorityOfThreadHandler(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool to_compare_thread(const struct list_elem *a, const struct list_elem *b, void *aux);
+
+
+void wake_up_sleeping_thread(struct thread *t, void *aux);
+
+
 #endif /* threads/thread.h */

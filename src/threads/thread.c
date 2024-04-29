@@ -107,8 +107,7 @@ bool to_compare_thread(const struct list_elem *a, const struct list_elem *b, voi
 /*<! Added for Periority Scheduler !>*/
 bool PriorityOfThreadHandler(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
-    return list_entry(a ,struct thread , elem)->priority
-     < list_entry(b , struct thread , elem)->priority;
+    return (list_entry(a ,struct thread , elem)->priority < list_entry(b , struct thread , elem)->priority);
 }
 
 
@@ -411,6 +410,19 @@ thread_set_priority (int new_priority)
     intr_set_level (old_level);
   }
 }
+
+
+void wake_up_sleeping_thread(struct thread *t, void *aux)
+{
+  if(t->status == THREAD_BLOCKED && t->sleepingTime > 0){
+    (t->sleepingTime)--;
+    if((t->sleepingTime) == 0) thread_unblock(t);
+  }
+  else{
+    return;
+  }
+}
+
 
 
 /* Returns the current thread's priority. */
