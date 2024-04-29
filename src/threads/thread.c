@@ -1,4 +1,4 @@
-#include "threads/thread.h"
+#include "thread.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -9,7 +9,7 @@
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
-#include "threads/synch.h"
+#include "synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -95,9 +95,8 @@ static tid_t allocate_tid (void);
 /*<! Added for Periority Scheduler !>*/
 bool PeriorityOfLockHandler(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
-  int aPeriorityLock = list_entry(a, struct lock, lockElem)->PriorityOfLock; 
-  int bPeriorityLock = list_entry(b, struct lock, lockElem)->PriorityOfLock; 
-  return aPeriorityLock<bPeriorityLock;
+ return list_entry(a , struct lock, lockElem)->PriorityOfLock
+     < list_entry(b , struct lock , lockElem)->PriorityOfLock;
 }
 
 bool to_compare_thread(const struct list_elem *a, const struct list_elem *b, void *aux)
@@ -109,24 +108,8 @@ bool to_compare_thread(const struct list_elem *a, const struct list_elem *b, voi
 bool PriorityOfThreadHandler(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
     return list_entry(a ,struct thread , elem)->priority
-          < list_entry(b , struct thread , elem)->priority;
+     < list_entry(b , struct thread , elem)->priority;
 }
-
-
-bool comp(struct thread* first, struct thread* second)
-{
-  int f = first -> priority > first -> effectivePriority ? first -> priority : first -> effectivePriority;
-  int s = second -> priority > second -> effectivePriority ? second -> priority : second -> effectivePriority;
-  return f < s;
-}
-
-bool thread_cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
-{
-  struct thread* first = list_entry(a, struct thread, elem);
-  struct thread* second = list_entry(b, struct thread, elem);
-  return comp(first, second);
-}
-
 
 
 void
@@ -291,9 +274,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  if(!thread_mlfqs)
-    list_push_back (&ready_list, &t->elem);
   
+  list_insert_ordered (&ready_list, &t->elem,(list_less_func*)&to_compare_thread , NULL ) ;                        //80008@ElsayedMohmed
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -556,9 +538,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  list_init(&t->waitingOnLock);
-  t->effectivePriority = PRI_MIN;  // initialize effectivePriority            //8008@ElsayedMohmed          
-
+  t->effectivePriority = priority;  // initialize effectivePriority           
+  list_init(&t->AcquireLockList);         
+  t->waitingOnLock = NULL;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
