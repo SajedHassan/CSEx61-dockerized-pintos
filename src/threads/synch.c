@@ -61,16 +61,16 @@ void
 sema_down (struct semaphore *sema) 
 {
   enum intr_level old_level;
-
   ASSERT (sema != NULL);
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
+
   while (sema->value == 0) 
-    {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
-      thread_block ();
-    }
+  {
+    list_push_back (&sema->waiters, &thread_current ()->elem);
+    thread_block ();
+  }
+
   sema->value--;
   intr_set_level (old_level);
 }
@@ -109,13 +109,20 @@ void
 sema_up (struct semaphore *sema) 
 {
   enum intr_level old_level;
-
   ASSERT (sema != NULL);
-
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+  {
+    /*<! Added for Periority Scheduler !>*/
+    struct list_elem *ElemMaxPer = list_max(&sema->waiters, PriorityOfThreadHandler, NULL);
+    struct thread *ThreadMaxPer = list_entry(ElemMaxPer, struct thread, elem);
+    
+    list_remove(ElemMaxPer);
+    if(ThreadMaxPer->priority >= thread_current()->priority)
+      thread_yield();
+    thread_unblock(ThreadMaxPer);
+
+  }
   sema->value++;
   intr_set_level (old_level);
 }
@@ -125,7 +132,7 @@ static void sema_test_helper (void *sema_);
 /* Self-test for semaphores that makes control "ping-pong"
    between a pair of threads.  Insert calls to printf() to see
    what's going on. */
-void
+void 
 sema_self_test (void) 
 {
   struct semaphore sema[2];
@@ -156,7 +163,7 @@ sema_test_helper (void *sema_)
       sema_up (&sema[1]);
     }
 }
-
+
 /* Initializes LOCK.  A lock can be held by at most a single
    thread at any given time.  Our locks are not "recursive", that
    is, it is an error for the thread currently holding a lock to
@@ -177,10 +184,19 @@ lock_init (struct lock *lock)
 {
   ASSERT (lock != NULL);
 
+  /*<! Added for Periority Scheduler !>*/
+  lock->PriorityOfLock = 0;
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
 }
-
+void nestedDonation(struct thread * holderThread){
+  if(holderThread == NULL || holderThread->waitingOnLock == NULL) return;
+  if(holderThread->priority > holderThread->waitingOnLock->PriorityOfLock){
+    holderThread->waitingOnLock->PriorityOfLock = holderThread->priority;
+    holderThread->waitingOnLock->holder->priority = holderThread->priority;
+  }
+  nestedDonation(holderThread->waitingOnLock->holder);
+}
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
    thread.
@@ -196,9 +212,41 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
-}
+  if(thread_mlfqs == true)
+  {                                             
+    /*<! Added for Advanced Scheduler !>*/
+    sema_down (&lock->semaphore);                                          
+  lock->holder = thread_current ();               
+                                                                          
+  }
+  else
+  {
+    /*<! Added for Periority Scheduler !>*/
+    struct thread *cur = thread_current();
+    if(lock_try_acquire (lock)==false)
+    { 
+      
+      cur->waitingOnLock = lock;                                         
+      if(cur->priority > lock->PriorityOfLock)
+      {
+        lock->PriorityOfLock = cur->priority;
+        lock->holder->priority = cur->priority;
+        
+        /* The Donation Part */
+        nestedDonation(lock->holder);
+      }
+       sema_down (&lock->semaphore);
+       lock->holder = thread_current ();
+
+       cur->waitingOnLock = NULL; 
+       list_push_back(&lock->holder->AcquireLockList, &lock->lockElem);
+    }
+   
+  }
+}  
+
+
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -216,21 +264,65 @@ lock_try_acquire (struct lock *lock)
 
   success = sema_try_down (&lock->semaphore);
   if (success)
+  {
     lock->holder = thread_current ();
+    // that mean the required lock is unlock                                                    
+    if(!thread_mlfqs)
+    {
+      lock->PriorityOfLock = lock->holder->priority;  //make the priority of lock = priority of current thread
+      list_push_back(&lock->holder->AcquireLockList, &lock->lockElem);   //fill the Aquirelocklist  
+    }                                                                                              
+  }       
   return success;
 }
-
 /* Releases LOCK, which must be owned by the current thread.
-
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
+void releaseLockPriority(struct lock* lock)
+   { list_remove(&(lock->lockElem));
+      //we should get max priority and give it to the lock 
+      if (!(list_empty(&lock->semaphore.waiters)))
+      { struct list_elem *ElemMaxPeriority = list_max(&(lock->semaphore.waiters), PriorityOfThreadHandler, NULL);
+          
+          struct thread *ThreadMaxPriority = list_entry(ElemMaxPeriority, struct thread, elem);
+          lock->PriorityOfLock = ThreadMaxPriority->priority;
+      }
+   }
+    
+      /*we actully make thread with highest priority to catch lock but we now should ensure that 
+      this thread not require another lock and if it requires we should change thث priority of current lock */
+     
+   void multipleLocks(struct lock* lock)
+   { 
+     if (list_empty(&lock->holder->AcquireLockList))
+      {
+        lock->holder->priority = lock->holder->effectivePriority;
+      }
+      else
+      {
+        struct list_elem *ElemMaxPriority = list_max(&(lock->holder->AcquireLockList),&PeriorityOfLockHandler, NULL);
+        struct lock *MaxPriorityLock = list_entry(ElemMaxPriority, struct lock, lockElem);
+         if (MaxPriorityLock->PriorityOfLock > lock->holder->effectivePriority)
+         {
+           lock->holder->priority = MaxPriorityLock->PriorityOfLock;
+         }
+         else
+         {
+           lock->holder->priority = lock->holder->effectivePriority;
+         }
+      }
+   }
 void
 lock_release (struct lock *lock) 
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
+  if (!thread_mlfqs)
+  { 
+  releaseLockPriority(lock);
+   multipleLocks(lock);
+  }
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 }
@@ -245,10 +337,12 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
 /* One semaphore in a list. */
 struct semaphore_elem 
   {
+    /*< Added for Periority Schedular >*/
+    int *priority;
     struct list_elem elem;              /* List element. */
     struct semaphore semaphore;         /* This semaphore. */
   };
@@ -288,6 +382,8 @@ void
 cond_wait (struct condition *cond, struct lock *lock) 
 {
   struct semaphore_elem waiter;
+  /*< Modified for Periority Scheduler >*/
+  waiter.priority = thread_current()->priority;
 
   ASSERT (cond != NULL);
   ASSERT (lock != NULL);
@@ -300,6 +396,15 @@ cond_wait (struct condition *cond, struct lock *lock)
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
 }
+
+/*< Added for Periority Schedular >*/
+//prepare to argument in func list_sort in cond_signal fn
+bool PriorityOfSemaphoreHandler(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+  return  *(list_entry(a, struct semaphore_elem, elem)->priority) >
+          *(list_entry(b, struct semaphore_elem, elem)->priority);
+}
+
 
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
@@ -317,8 +422,10 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) 
+  { list_sort(&cond->waiters , PriorityOfSemaphoreHandler , NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
