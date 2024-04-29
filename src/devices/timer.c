@@ -20,6 +20,7 @@
 #endif
 struct list sleepy_list; //linked list for sleepy list in sorted form 
 struct lock sleepy_list_lock; //lock for linked list synchronous modification 
+int64_t min_list;
 
 
 /* Number of timer ticks since OS booted. */
@@ -45,6 +46,7 @@ timer_init (void)
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init(&sleepy_list);
   lock_init(&sleepy_list_lock);
+  min_list = 0;
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -113,9 +115,10 @@ timer_sleep (int64_t ticks)
   cuttent_going_to_sleep.tick_to_walke_up = start + ticks;
 
   lock_acquire(&sleepy_list_lock);
-  list_insert_ordered(&sleepy_list, &cuttent_going_to_sleep.list_elem_val,
-                      &cmp_fnc,
-                      NULL);
+  list_insert_ordered(&sleepy_list, &cuttent_going_to_sleep.list_elem_val,&cmp_fnc,NULL);
+  struct sleepy_thread_elem * current_element_in_list = list_entry(list_begin(&sleepy_list), struct sleepy_thread_elem , list_elem_val);
+  min_list = current_element_in_list->tick_to_walke_up;
+  
   lock_release(&sleepy_list_lock);
 
   sema_down(&current_running_sema);
@@ -197,15 +200,20 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
 
-  while(!(list_empty(&sleepy_list)))
+  if(ticks>=min_list)
   {
-    struct sleepy_thread_elem * current_element_in_list = list_entry(list_begin(&sleepy_list), struct sleepy_thread_elem , list_elem_val);
-    if(ticks >= current_element_in_list->tick_to_walke_up){
-      sema_up(current_element_in_list->thread_sema);
-      list_pop_front(&sleepy_list);
-      continue;
-    }
-    break;
+      while(!(list_empty(&sleepy_list)))
+      {
+        struct sleepy_thread_elem * current_element_in_list = list_entry(list_begin(&sleepy_list), struct sleepy_thread_elem , list_elem_val);
+        if(ticks >= current_element_in_list->tick_to_walke_up){
+          sema_up(current_element_in_list->thread_sema);
+          list_pop_front(&sleepy_list);
+          struct sleepy_thread_elem * current_element_in_list = list_entry(list_begin(&sleepy_list), struct sleepy_thread_elem , list_elem_val);
+          min_list =  current_element_in_list->tick_to_walke_up;
+          continue;
+        }
+        break;
+      }
   }
   
 
