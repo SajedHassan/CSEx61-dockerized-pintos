@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 /* This file is derived from source code for the Nachos
    instructional operating system.  The Nachos copyright notice
    is reproduced in full below. */
@@ -899,5 +899,4 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
->>>>>>> 740564077a3990d85ae7ee82bbde44dc77cbe2f7
 }

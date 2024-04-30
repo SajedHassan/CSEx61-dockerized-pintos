@@ -50,13 +50,13 @@ run_test (const char *name)
 
   for (t = tests; t < tests + sizeof tests / sizeof *tests; t++)
     if (!strcmp (name, t->name))
-      {
-        test_name = name;
-        msg ("begin");
-        t->function ();
-        msg ("end");
-        return;
-      }
+    {
+      test_name = name;
+      msg ("begin");
+      t->function ();
+      msg ("end");
+      return;
+    }
   PANIC ("no test named \"%s\"", name);
 }
 
