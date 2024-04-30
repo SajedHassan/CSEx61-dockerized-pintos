@@ -386,9 +386,9 @@ thread_get_load_avg (void)
 /* ==================== MLFQS ==================== */
 void thread_calculate_load_avg (void) {
   int ready_threads = list_size (&ready_list);
-  // if (thread_current () != idle_thread) {
-  //   ready_threads++;
-  // }
+  if (thread_current () != idle_thread) {
+    ready_threads++;
+  }
   load_avg = add (mul (div_int (int_to_fixed (59), 60), load_avg), mul_int (div_int (int_to_fixed (1), 60), ready_threads));
 }
 /* ==================== MLFQS END ==================== */
