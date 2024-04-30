@@ -18,6 +18,9 @@
 #if TIMER_FREQ > 1000
 #error TIMER_FREQ <= 1000 recommended
 #endif
+struct list sleepy_list; //linked list for sleepy list in sorted form 
+struct lock sleepy_list_lock; //lock for linked list synchronous modification 
+
 
 struct list sleepy_list; //linked list for sleepy list in sorted form 
 struct lock sleepy_list_lock; //lock for linked list synchronous modification 
@@ -198,6 +201,24 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
+<<<<<<< HEAD
+=======
+
+  while(!(list_empty(&sleepy_list)))
+  {
+    struct sleepy_thread_elem * current_element_in_list = list_entry(list_begin(&sleepy_list), struct sleepy_thread_elem , list_elem_val);
+    if(ticks >= current_element_in_list->tick_to_walke_up){
+      sema_up(current_element_in_list->thread_sema);
+      list_pop_front(&sleepy_list);
+      continue;
+    }
+    break;
+  }
+  
+
+  thread_tick (); 
+}
+>>>>>>> 740564077a3990d85ae7ee82bbde44dc77cbe2f7
 
   while(!(list_empty(&sleepy_list)))
   {
@@ -286,7 +307,10 @@ real_time_delay (int64_t num, int32_t denom)
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
 
+<<<<<<< HEAD
 /* Compare function for sleeping thread list */
+=======
+>>>>>>> 740564077a3990d85ae7ee82bbde44dc77cbe2f7
 static bool
 cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
 {
@@ -294,4 +318,7 @@ cmp_fnc(const struct list_elem *a, const struct list_elem *b, void * aux UNUSED)
   struct sleepy_thread_elem* second = list_entry(b, struct sleepy_thread_elem, list_elem_val);
   return first->tick_to_walke_up < second->tick_to_walke_up;
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 740564077a3990d85ae7ee82bbde44dc77cbe2f7
