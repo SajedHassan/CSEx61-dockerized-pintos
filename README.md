@@ -6,6 +6,7 @@ PintOS is an open source instructional operating system kernel developed by Stan
 
 ![PintOS Components](resources/pintos_components.png "PintOS Components")
 
+
 The project is divided into four phases:
 
 * P1: Threads
