@@ -136,7 +136,7 @@ main (void)
   shutdown ();
   thread_exit ();
 }
-
+
 /* Clear the "BSS", a segment that should be initialized to
    zeros.  It isn't actually stored on disk or zeroed by the
    kernel loader, so we have to zero it ourselves.

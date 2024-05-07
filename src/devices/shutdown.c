@@ -100,7 +100,8 @@ shutdown_power_off (void)
   serial_flush ();
 
   /* ACPI power-off */
-  outw (0xB004, 0x2000);
+  //outw (0xB004, 0x2000);
+  outw( 0x604, 0x0 | 0x2000 );
 
   /* This is a special power-off sequence supported by Bochs and
      QEMU, but not by physical hardware. */
