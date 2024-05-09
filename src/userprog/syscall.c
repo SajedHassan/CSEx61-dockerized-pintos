@@ -12,6 +12,23 @@
 
 static void syscall_handler(struct intr_frame *);
 
+int get_int(struct intr_frame *f);            // get int from the stack
+bool validate_void_ptr(struct intr_frame *f); // check if the pointer is valid
+
+void sys_seek(struct intr_frame *f);
+void sys_tell(struct intr_frame *f);
+
+void wrapper_sys_exit(struct intr_frame *f);
+void wrapper_sys_exec(struct intr_frame *f);
+void wrapper_sys_wait(struct intr_frame *f);
+void wrapper_sys_create(struct intr_frame *f);
+void wrapper_sys_remove(struct intr_frame *f);
+void wrapper_sys_open(struct intr_frame *f);
+void wrapper_sys_filesize(struct intr_frame *f);
+void wrapper_sys_read(struct intr_frame *f);
+void wrapper_sys_write(struct intr_frame *f);
+void wrapper_sys_close(struct intr_frame *f);
+
 void syscall_init(void)
 {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -103,7 +120,7 @@ syscall_handler(struct intr_frame *f)
 int get_int(struct intr_frame *f)
 {
   return *(int *)(f->esp);
-};
+}
 
 bool validate_virtual_memory(void *val)
 {
@@ -148,6 +165,23 @@ tid_t sys_wait(tid_t tid)
   return process_wait(tid);
 }
 
+int sys_write(int fd, const void *buffer, unsigned size)
+{
+  if (fd == 1)
+  { // fd is 1, writes to the console
+    lock_acquire(&files_sync_lock);
+    putbuf(buffer, size);
+    lock_release(&files_sync_lock);
+    return size;
+  }
+
+  // write to the file.
+}
+
+void sys_seek(struct intr_frame *f) {}
+
+void sys_tell(struct intr_frame *f) {}
+
 void wrapper_sys_wait(struct intr_frame *f)
 {
   if (!validate_virtual_memory((int *)f->esp + 1))
@@ -160,3 +194,27 @@ void wrapper_sys_exec(struct intr_frame *f)
   char *file_name = (char *)(*((int *)f->esp + 1));
   f->eax = process_execute(file_name);
 }
+
+void wrapper_sys_write(struct intr_frame *f)
+{
+  int fd = *((int *)f->esp + 1);
+  char *buffer = (char *)(*((int *)f->esp + 2));
+  if (fd == 0 || !validate_virtual_memory(buffer))
+  { // fail, if fd is 0 (stdin), or its virtual memory
+    sys_exit(-1);
+  }
+  unsigned size = (unsigned)(*((int *)f->esp + 3));
+  f->eax = sys_write(fd, buffer, size);
+}
+
+void wrapper_sys_create(struct intr_frame *f) {}
+
+void wrapper_sys_remove(struct intr_frame *f) {}
+
+void wrapper_sys_open(struct intr_frame *f) {}
+
+void wrapper_sys_filesize(struct intr_frame *f) {}
+
+void wrapper_sys_read(struct intr_frame *f) {}
+
+void wrapper_sys_close(struct intr_frame *f) {}
