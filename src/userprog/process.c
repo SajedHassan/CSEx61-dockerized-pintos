@@ -17,9 +17,12 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
+
+struct thread *return_child_by_tid(tid_t tid);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -30,8 +33,7 @@ tid_t process_execute(const char *file_name)
   char *fn_copy;
   tid_t tid;
   char *saveptr1;
-  /* Make a copy of FILE_NAME.
-  Otherwise there's a race between the caller and load(). */
+  /* Make a copy of FILE_NAME, otherwise there's a race between the caller and load(). */
 
   fn_copy = palloc_get_page(0);
   if (fn_copy == NULL)
@@ -113,6 +115,7 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid)
 {
+  thread_current()->waiting_on = child_tid;
   struct thread *child = return_child_by_tid(child_tid); // Get child with given child_tid
   if (child != NULL)
   {
@@ -270,6 +273,7 @@ struct Elf32_Phdr
 #define PF_R 4 /* Readable. */
 
 static bool setup_stack(void **esp);
+void stack_args(void **esp, char *filename_with_args);
 static bool validate_segment(const struct Elf32_Phdr *, struct file *);
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
                          uint32_t read_bytes, uint32_t zero_bytes,
@@ -288,6 +292,13 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   bool success = false;
   int i;
 
+  char *fn_copy;
+  char *save_ptr;
+  int name_length = strlen(file_name) + 1;
+  fn_copy = malloc(name_length);
+  strlcpy(fn_copy, file_name, name_length);
+  fn_copy = strtok_r(fn_copy, " ", &save_ptr); // Copy of file name
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create();
   if (t->pagedir == NULL)
@@ -305,9 +316,12 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 3 || ehdr.e_version != 1 || ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
   {
-    printf("load: %s: error loading executable\n", file_name);
+    printf("load: %s: error loading executable\n", fn_copy);
     goto done;
   }
+
+  /* Pointer to executable file */
+  thread_current()->executable_file = file;
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
@@ -357,8 +371,7 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
           read_bytes = 0;
           zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
         }
-        if (!load_segment(file, file_page, (void *)mem_page,
-                          read_bytes, zero_bytes, writable))
+        if (!load_segment(file, file_page, (void *)mem_page, read_bytes, zero_bytes, writable))
           goto done;
       }
       else
@@ -371,6 +384,10 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   if (!setup_stack(esp))
     goto done;
 
+  /* Push stack args */
+  push_stack_args(fn_copy, esp, &save_ptr);
+  free(fn_copy); // free file name copy
+
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
@@ -378,7 +395,9 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
 
 done:
   /* We arrive here whether the load is successful or not. */
-  file_close(file);
+  if (success) // Loaded successfully
+    file_deny_write(file);
+
   return success;
 }
 
@@ -543,4 +562,56 @@ struct thread *return_child_by_tid(tid_t tid)
     }
   }
   return NULL;
+}
+
+void push_stack_args(char *file_name, void **esp, char **save_ptr)
+{
+  void *stack_ptr = *esp;
+  int no_of_args = 0;
+  char *ptr = file_name;
+  int total_size = 0;
+
+  //// push arguments to the stack
+  while (ptr != NULL)
+  {
+    stack_ptr -= (strlen(ptr) + 1);
+    memcpy(stack_ptr, ptr, strlen(ptr) + 1);
+    total_size += strlen(ptr) + 1;
+    no_of_args++;
+    ptr = strtok_r(NULL, " ", save_ptr);
+  }
+  char *stack_args = stack_ptr;
+  //// push zeros as word-align
+  int word_align = (4 - (total_size % 4)) % 4;
+  if (word_align != 0)
+  {
+    stack_ptr -= word_align;
+    memset(stack_ptr, 0, word_align);
+  }
+  /* Push NULL pointer at end of args */
+  stack_ptr -= sizeof(char *);
+  memset(stack_ptr, 0, 1);
+
+  /* Push addresses of args */
+  for (int j = no_of_args - 1; j >= 0; j--)
+  {
+    stack_ptr -= sizeof(char *);
+    *(char **)stack_ptr = stack_args;
+    stack_args += (strlen(stack_args) + 1);
+  }
+
+  /// push the address of first address
+  char **address = (char **)stack_ptr;
+  stack_ptr -= sizeof(char **);
+  *(char ***)stack_ptr = address;
+
+  //// push number of arguments
+  stack_ptr -= sizeof(int);
+  *(int *)stack_ptr = no_of_args;
+
+  //// push NULL as a return address
+  stack_ptr -= sizeof(int *);
+  *(int **)stack_ptr = 0;
+  *esp = stack_ptr;
+  return;
 }

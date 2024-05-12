@@ -101,14 +101,6 @@ struct thread
    /* Shared between thread.c and synch.c. */
    struct list_elem elem; /* List element. */
 
-#ifdef USERPROG
-   /* Owned by userprog/process.c. */
-   uint32_t *pagedir; /* Page directory. */
-#endif
-
-   /* Owned by thread.c. */
-   unsigned magic; /* Detects stack overflow. */
-
    /****phase 2****/
    struct list open_file;
    struct list child_process;
@@ -121,6 +113,14 @@ struct thread
    struct semaphore parent_child_sync;
    struct list_elem child_elem;
    int thread_exiting_status;
+
+#ifdef USERPROG
+   /* Owned by userprog/process.c. */
+   uint32_t *pagedir; /* Page directory. */
+#endif
+
+   /* Owned by thread.c. */
+   unsigned magic; /* Detects stack overflow. */
 };
 
 /* If false (default), use round-robin scheduler.

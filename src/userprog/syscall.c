@@ -9,11 +9,14 @@
 #include "userprog/pagedir.h"
 #include "devices/shutdown.h"
 #include "userprog/process.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
 
 static void syscall_handler(struct intr_frame *);
 
 int get_int(struct intr_frame *f);            // get int from the stack
 bool validate_void_ptr(struct intr_frame *f); // check if the pointer is valid
+bool validate_virtual_memory(void *val);
 
 void sys_seek(struct intr_frame *f);
 void sys_tell(struct intr_frame *f);
