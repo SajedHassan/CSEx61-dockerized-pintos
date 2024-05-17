@@ -34,7 +34,7 @@ void wrapper_sys_read(struct intr_frame *f);
 void wrapper_sys_write(struct intr_frame *f);
 void wrapper_sys_close(struct intr_frame *f);
 
-
+int sys_create(const char *file, unsigned initial_size);
 
 void close_file(int fd);
 int read_file(int fd, void *buffer, unsigned size);
@@ -80,6 +80,7 @@ syscall_handler(struct intr_frame *f)
   }
   case SYS_CREATE:
   {
+    printf("CALLING CREATE\n");
     wrapper_sys_create(f);
     break;
   }
@@ -268,9 +269,21 @@ void sys_tell(struct intr_frame *f) {
  */
 void wrapper_sys_create(struct intr_frame *f) {
   char *file_name = (char *)(*((int *)f->esp + 1));
+  printf("%s\n", file_name);
+  if (!validate_virtual_memory(file_name))
+  {
+    sys_exit(-1);
+
+  }
   unsigned int initial_size = *((unsigned int *)f->esp + 2);
-  f->eax = filesys_create(file_name, initial_size);
+
+  int TEMP = 0;
+  lock_acquire(&syscall_sync_lock);
+  TEMP = filesys_create(file_name, initial_size);
+  lock_release(&syscall_sync_lock);
+  f->eax = TEMP;
 }
+
 /**
  * @brief 
  * Deletes the file called file. Returns true if successful, false otherwise. 
@@ -280,8 +293,20 @@ void wrapper_sys_create(struct intr_frame *f) {
  */
 void wrapper_sys_remove(struct intr_frame *f) {
   char *file_name = (char *)(*((int *)f->esp + 1));
-  f->eax = filesys_remove(file_name);
+  if (!validate_virtual_memory(file_name))
+  {
+    sys_exit(-1);
+  }
+
+  int TEMP = -1;
+  lock_acquire(&syscall_sync_lock);
+  TEMP = filesys_remove(file_name);
+  lock_release(&syscall_sync_lock);
+  f->eax = TEMP;
 }
+
+// TODO: Implement this function again
+
 /**
  * @brief Opens the file called file. Returns a nonnegative integer handle called a "file descriptor" (fd), or -1 if the file could not be opened.
 
@@ -294,8 +319,21 @@ void wrapper_sys_remove(struct intr_frame *f) {
  */
 void wrapper_sys_open(struct intr_frame *f) {
   char *file_name = (char *)(*((int *)f->esp + 1));
-  f->eax = filesys_open(file_name);
+  if (!validate_virtual_memory(file_name))
+  {
+    sys_exit(-1);
+  }
+
+  int TEMP = 0;
+  lock_acquire(&syscall_sync_lock);
+  TEMP = filesys_open(file_name);
+  lock_release(&syscall_sync_lock);
+  f->eax = TEMP;
 }
+
+// TODO: Implement this function again
+
+
 /**
  * @brief Returns the size, in bytes, of the file open as fd.
  * 
@@ -327,6 +365,7 @@ void wrapper_sys_read(struct intr_frame *f) {
     f->eax = read_file(fd, buffer, size);
   }
 }
+
 /**
  * @brief Closes file descriptor fd. 
  * Exiting or terminating a process implicitly closes all its open file descriptors, as if by calling this function for each one. 
