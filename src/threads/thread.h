@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "real.h"
 #include "synch.h"
-
+#define USERPROG
 /* States in a thread's life cycle. */
 enum thread_status
 {
