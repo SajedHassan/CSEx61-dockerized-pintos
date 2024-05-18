@@ -12,7 +12,7 @@ struct open_file
 {
    struct file *file;
    struct list_elem elem;
-   int file_descriptor;
+   int fd;
 };
 
 /* States in a thread's life cycle. */
@@ -106,6 +106,7 @@ struct thread
    /****phase 2****/
    struct list open_file;
    struct list child_process;
+   struct list list_of_open_file;
    struct thread *parent_thread;
    bool child_creation_success;
    int child_status;
