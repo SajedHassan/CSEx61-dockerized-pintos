@@ -29,6 +29,8 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+// List for holding the threads
+static struct list blocked_threads ;
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -37,6 +39,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  /*Initialize the blocked list*/
+  list_init(&blocked_threads) ;
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -84,6 +88,13 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
+bool less_wakeup_tick (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux) {
+                              struct thread* first_thread = list_entry(a,struct thread , elem) ;
+                              struct thread* second_thread = list_entry(b,struct thread , elem) ;
+                              return first_thread->wakeup_tick < second_thread->wakeup_tick ;
+                             }
 /* Sleeps for approximately TICKS timer ticks.  Interrupts must
    be turned on. */
 void
@@ -92,10 +103,43 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  /*
+  * Allocate a list for blocked threads 
+  * Allocate either in data segment or 
+  * use palloc to avoid stack corruption
+  * add a field to each thread to know 
+  * when it should wake up
+  * sort the list check the top of list
+  * at each tick continue until a thread
+  * tick exceeds the current tick
+  */
+
+  // while (timer_elapsed (start) < ticks) 
+  //   thread_yield ();
+  intr_disable();
+  struct thread* calling_thread = thread_current() ;
+  calling_thread->wakeup_tick = start + ticks ;
+  list_insert_ordered(&blocked_threads , &calling_thread->elem , less_wakeup_tick , NULL ) ;
+  thread_block() ;
+  intr_enable() ;
 }
 
+void thread_wakeup() {
+  struct list_elem *element ;
+  int64_t current_tick = timer_ticks() ;
+  while ((element = list_begin(&blocked_threads)) != list_end(&blocked_threads)){
+    struct thread* t = list_entry(element, struct thread , elem) ;
+    if (t ->wakeup_tick > current_tick)
+    {
+      break; 
+    }
+    list_remove(element) ;
+    thread_unblock(t) ;
+    /* check to see whether the thread should run in case it has the highest priority */
+    if(t->priority > thread_current()->priority) 
+      intr_yield_on_return() ;
+  }
+}
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
    turned on. */
 void
@@ -172,6 +216,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  thread_wakeup();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
