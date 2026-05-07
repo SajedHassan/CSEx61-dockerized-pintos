@@ -174,14 +174,22 @@ int wait(pid_t pid)
   // TODO
 }
 
+// Just a wrapper around filesys_create
 bool create(const char *file, unsigned initial_size)
 {
-  // TODO
+  lock_acquire(&fs_lock);
+  bool success = filesys_create(file, initial_size);
+  lock_release(&fs_lock);
+  return success;
 }
 
+// Just a wrapper around filesys_remove
 bool remove(const char *file)
 {
-  // TODO
+  lock_acquire(&fs_lock);
+  bool success = filesys_remove(file);
+  lock_release(&fs_lock);
+  return success;
 }
 
 int open(const char *file)
@@ -220,9 +228,23 @@ int open(const char *file)
   return -1;
 }
 
+// Wrapper around file_length
 int filesize(int fd)
 {
-  // TODO
+  if (fd < 2 || fd >= 128) return -1;
+
+  lock_acquire(&fs_lock);
+  struct file* f = thread_current()->fdt[fd];
+
+  if (f == NULL)
+  {
+    lock_release(&fs_lock);
+    return -1;
+  }
+
+  int len = file_length(f);
+  lock_release(&fs_lock);
+  return len;
 }
 
 int read(int fd, void *buffer, unsigned size)
