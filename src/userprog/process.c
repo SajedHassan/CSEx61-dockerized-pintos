@@ -159,6 +159,7 @@ process_wait (tid_t child_tid UNUSED)
 }
 
 /* Free the current process's resources. */
+// process_exit is called by thread_exit
 void
 process_exit (void)
 {
@@ -181,6 +182,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  close_all_files(); // Close all files
 }
 
 /* Sets up the CPU for running user code in the current

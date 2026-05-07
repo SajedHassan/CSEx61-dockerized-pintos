@@ -297,6 +297,11 @@ int write(int fd, const void *buffer, unsigned size)
    * Return Value:
    *    If success: return number of bytes written
    *    If fail: return -1
+   *
+   * One might consider this edge case: What if a thread attempts to write on its own;
+   * executable file?!
+   * Well gladly for us this case is handled in the file_write() function that we call below;
+   * so there is no need for us to handle it ourselves
    */
 
   // Out of range
@@ -355,6 +360,16 @@ void close(int fd)
     thread_current()->fdt[fd] = NULL;
   }
   lock_release(&fs_lock);
+}
+
+// This is a helper method that should be called when a thread/process;
+// finishes executing as to ensure that all it's files are closed
+void close_all_files()
+{
+  for (int i = 2; i < 128; i++)
+  {
+    close(i);
+  }
 }
 
 void check_valid_buffer (const void *buffer, unsigned size) 

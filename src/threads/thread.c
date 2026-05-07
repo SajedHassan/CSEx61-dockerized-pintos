@@ -101,6 +101,9 @@ bool compare_thread_priority(const struct list_elem *a, const struct list_elem *
 
    It is not safe to call thread_current() until this function
    finishes. */
+// Difference between it and init_thread is that;
+// This inits the threading infrastructure and is called once when the OS boots;
+// while init_thread actually starts a thread
 void thread_init(void)
 {
   ASSERT(intr_get_level() == INTR_OFF);
@@ -116,10 +119,6 @@ void thread_init(void)
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid();
 
-  // Initialize file descriptor table with null, so it doesn't contain garabage values.
-  for (int i = 0; i < 128; i++) {
-    t->fdt[i] = NULL;
-  }
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -314,7 +313,7 @@ void thread_exit(void)
   ASSERT(!intr_context());
 
 #ifdef USERPROG
-  process_exit();
+  process_exit(); // Very important! thread_exit also calls process_exit
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -527,6 +526,11 @@ init_thread(struct thread *t, const char *name, int priority)
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
   intr_set_level(old_level);
+
+  // Initialize file descriptor table with null, so it doesn't contain garabage values.
+  for (int i = 0; i < 128; i++) {
+    t->fdt[i] = NULL;
+  }
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
