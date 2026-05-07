@@ -156,7 +156,12 @@ syscall_handler(struct intr_frame *f UNUSED)
 
 void exit(int status)
 {
-  // TODO
+  struct thread* current = thread_current();
+
+  // Print very epic and cool exit msg
+  printf("%s: exit(%d)\n", current->name, status);
+
+  thread_exit();
 }
 
 void halt(void)
@@ -336,14 +341,35 @@ int write(int fd, const void *buffer, unsigned size)
   return bytes_written;
 }
 
+// Jump to a specific byte in the file
 void seek(int fd, unsigned position)
 {
-  // TODO
+  if (fd < 2 || fd >= 128) return;
+
+  lock_acquire(&fs_lock);
+  struct file *f = thread_current()->fdt[fd];
+  if (f != NULL)
+  {
+    file_seek(f, position);
+  }
+  lock_release(&fs_lock);
 }
 
+// Tells where we are in the file crrently
+// Similar to ur cursor in the file, where we are editing rn
 unsigned tell(int fd)
 {
-  // TODO
+  if (fd < 2 || fd >= 128) return 0;
+
+  lock_acquire(&fs_lock);
+  struct file *f = thread_current()->fdt[fd];
+  unsigned pos = 0;
+  if (f != NULL)
+  {
+    pos = file_tell(f);
+  }
+  lock_release(&fs_lock);
+  return pos;
 }
 
 void close(int fd)
